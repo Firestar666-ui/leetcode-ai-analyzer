@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeetCode AI 分析器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 360px;
+      min-height: 400px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+      color: #e5e7eb;
+      overflow-x: hidden;
+    }
+
+    /* 头部 */
+    .header {
+      background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+      padding: 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      animation: shimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%, 100% { transform: translate(-25%, -25%) rotate(0deg); }
+      50% { transform: translate(-25%, -25%) rotate(180deg); }
+    }
+
+    .header-icon {
+      font-size: 36px;
+      margin-bottom: 8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 600;
+      position: relative;
+      z-index: 1;
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 内容区 */
+    .content {
+      padding: 16px;
+    }
+
+    /* 状态卡片 */
+    .status-card {
+      background: rgba(124, 58, 237, 0.15);
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .status-icon.inactive {
+      background: linear-gradient(135deg, #6b7280, #4b5563);
+    }
+
+    .status-info {
+      flex: 1;
+    }
+
+    .status-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .status-desc {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
+
+    /* 设置项 */
+    .settings-section {
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #a78bfa;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .setting-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .setting-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(124, 58, 237, 0.3);
+    }
+
+    .setting-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #e5e7eb;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .setting-label span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 输入框 */
+    .input-wrapper {
+      position: relative;
+    }
+
+    .setting-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #e5e7eb;
+      font-size: 13px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      transition: all 0.2s ease;
+    }
+
+    .setting-input:focus {
+      outline: none;
+      border-color: #7c3aed;
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    .setting-input::placeholder {
+      color: #6b7280;
+    }
+
+    .input-hint {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    /* 下拉选择 */
+    .setting-select {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #e5e7eb;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    .setting-select:focus {
+      outline: none;
+      border-color: #7c3aed;
+    }
+
+    .setting-select option {
+      background: #1a1a2e;
+      color: #e5e7eb;
+    }
+
+    /* 开关 */
+    .toggle-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: #4b5563;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .toggle.active {
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    }
+
+    .toggle-slider {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .toggle.active .toggle-slider {
+      transform: translateX(20px);
+    }
+
+    /* 按钮 */
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #e5e7eb;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* 底部 */
+    .footer {
+      padding: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+    }
+
+    .footer-text {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .footer-link {
+      font-size: 11px;
+      color: #a78bfa;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .footer-link:hover {
+      color: #c4b5fd;
+      text-decoration: underline;
+    }
+
+    /* 消息提示 */
+    .toast {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #22c55e;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast.error {
+      background: #ef4444;
+    }
+
+    /* 隐藏 */
+    .hidden {
+      display: none !important;
+    }
+
+    /* 加载动画 */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- 头部 -->
+  <div class="header">
+    <div class="header-icon">✨</div>
+    <div class="header-title">LeetCode AI 分析器</div>
+    <div class="header-subtitle">智能代码分析与优化建议</div>
+  </div>
+
+  <!-- 内容 -->
+  <div class="content">
+    <!-- 状态卡片 -->
+    <div class="status-card">
+      <div class="status-icon" id="status-icon">✓</div>
+      <div class="status-info">
+        <div class="status-title" id="status-title">扩展已启用</div>
+        <div class="status-desc" id="status-desc">在 LeetCode 提交页面点击 ✨ 按钮使用</div>
+      </div>
+    </div>
+
+    <!-- API 设置 -->
+    <div class="settings-section">
+      <div class="section-title">🔑 API 设置</div>
+      
+      <div class="setting-item">
+        <div class="setting-label">
+          <span>🌐 API Key</span>
+        </div>
+        <div class="input-wrapper">
+          <input type="password" class="setting-input" id="api-key" placeholder="输入您的 GLM API Key">
+          <div class="input-hint">在 <a href="https://open.bigmodel.cn/" target="_blank" style="color: #a78bfa;">bigmodel.cn</a> 获取 API Key</div>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <span>🌍 API 地址</span>
+        </div>
+        <div class="input-wrapper">
+          <input type="text" class="setting-input" id="api-url" placeholder="默认：智谱 GLM API 地址">
+          <div class="input-hint">留空使用默认智谱 API，兼容所有 OpenAI 格式接口</div>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <span>🤖 模型名称</span>
+        </div>
+        <div class="input-wrapper">
+          <input type="text" class="setting-input" id="model-name" placeholder="留空则使用下拉选择">
+          <div class="input-hint">自定义模型名，填写后优先于下拉选择</div>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <span>📋 内置模型</span>
+        </div>
+        <select class="setting-select" id="model-select">
+          <option value="glm-4.7-flash">GLM-4.7-Flash (推荐)</option>
+          <option value="glm-4.5-flash">GLM-4.5-Flash</option>
+        </select>
+        <div class="input-hint" style="margin-top:6px;">仅在「模型名称」为空时生效</div>
+      </div>
+    </div>
+
+    <!-- 功能设置 -->
+    <div class="settings-section">
+      <div class="section-title">⚙️ 功能设置</div>
+      
+      <div class="setting-item">
+        <div class="toggle-wrapper">
+          <div class="setting-label">
+            <span>📊 流式输出</span>
+          </div>
+          <div class="toggle active" id="toggle-stream">
+            <div class="toggle-slider"></div>
+          </div>
+        </div>
+        <div class="input-hint">实时显示 AI 分析进度</div>
+      </div>
+
+      <div class="setting-item">
+        <div class="toggle-wrapper">
+          <div class="setting-label">
+            <span>🔔 分析完成提示</span>
+          </div>
+          <div class="toggle active" id="toggle-notify">
+            <div class="toggle-slider"></div>
+          </div>
+        </div>
+        <div class="input-hint">分析完成后显示通知</div>
+      </div>
+
+      <div class="setting-item">
+        <div class="toggle-wrapper">
+          <div class="setting-label">
+            <span>💾 保存历史记录</span>
+          </div>
+          <div class="toggle active" id="toggle-history">
+            <div class="toggle-slider"></div>
+          </div>
+        </div>
+        <div class="input-hint">本地保存分析历史</div>
+      </div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <button class="btn btn-primary" id="btn-save">
+      <span>💾</span> 保存设置
+    </button>
+    
+    <button class="btn btn-secondary" id="btn-test" style="margin-top: 10px;">
+      <span>🧪</span> 测试连接
+    </button>
+  </div>
+
+  <!-- 底部 -->
+  <div class="footer">
+    <div class="footer-text">LeetCode AI Analyzer v1.0</div>
+    <div class="footer-links">
+      <a href="#" class="footer-link" id="link-help">使用帮助</a>
+      <a href="#" class="footer-link" id="link-feedback">反馈问题</a>
+      <a href="#" class="footer-link" id="link-github">GitHub</a>
+    </div>
+  </div>
+
+  <!-- 消息提示 -->
+  <div class="toast" id="toast"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
