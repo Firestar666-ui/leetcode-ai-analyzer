@@ -185,17 +185,17 @@
     // 底部链接
     elements.linkHelp.addEventListener('click', (e) => {
       e.preventDefault();
-      chrome.tabs.create({ url: 'https://github.com/your-repo/leetcode-ai-analyzer#使用说明' });
+      chrome.tabs.create({ url: 'https://github.com/Firestar666-ui/leetcode-ai-analyzer#readme' });
     });
 
     elements.linkFeedback.addEventListener('click', (e) => {
       e.preventDefault();
-      chrome.tabs.create({ url: 'https://github.com/your-repo/leetcode-ai-analyzer/issues' });
+      chrome.tabs.create({ url: 'https://github.com/Firestar666-ui/leetcode-ai-analyzer/issues' });
     });
 
     elements.linkGithub.addEventListener('click', (e) => {
       e.preventDefault();
-      chrome.tabs.create({ url: 'https://github.com/your-repo/leetcode-ai-analyzer' });
+      chrome.tabs.create({ url: 'https://github.com/Firestar666-ui/leetcode-ai-analyzer' });
     });
   }
 
