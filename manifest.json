@@ -38,7 +38,7 @@
   ],
   "host_permissions": [
     "https://leetcode.cn/*",
-    "https://open.bigmodel.cn/*"
+    "https://*/*"
   ],
   "web_accessible_resources": [
     {

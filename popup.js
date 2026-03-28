@@ -207,12 +207,12 @@
   async function testConnection() {
     const btn = elements.btnTest;
     const originalText = btn.innerHTML;
-    
+
     btn.innerHTML = '<div class="spinner"></div> 测试中...';
     btn.disabled = true;
 
     const apiKey = elements.apiKey.value.trim();
-    
+
     if (!apiKey || apiKey.length < 10) {
       showToast('✗ 请先输入有效的 API Key', true);
       btn.innerHTML = originalText;
@@ -220,10 +220,11 @@
       return;
     }
 
+    const apiUrl = elements.apiUrl.value.trim() || DEFAULT_API_URL;
+
     try {
-      const testUrl = elements.apiUrl.value.trim() || DEFAULT_API_URL;
       const testModel = elements.modelName.value.trim() || elements.modelSelect.value;
-      const response = await fetch(testUrl, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
