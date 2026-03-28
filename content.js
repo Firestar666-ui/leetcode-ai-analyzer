@@ -200,7 +200,26 @@
         console.log('[LeetCode AI] 从 API 获取题目 slug:', analyzerState.apiProblemSlug);
       }
 
-      return details.code;
+      // 构建运行结果对象
+      const runResult = {
+        runtime: details.runtime || null,
+        runtimePercentile: details.runtimePercentile != null
+          ? Math.round(details.runtimePercentile * 10) / 10
+          : null,
+        memory: details.memory || null,
+        memoryPercentile: details.memoryPercentile != null
+          ? Math.round(details.memoryPercentile * 10) / 10
+          : null
+      };
+
+      console.log('[LeetCode AI] 运行结果：',
+        '耗时:', runResult.runtime,
+        '| 击败:', runResult.runtimePercentile != null ? runResult.runtimePercentile + '%' : '未知',
+        '| 内存:', runResult.memory,
+        '| 内存击败:', runResult.memoryPercentile != null ? runResult.memoryPercentile + '%' : '未知'
+      );
+
+      return { code: details.code, runResult };
     } catch (e) {
       console.error('[LeetCode AI] GraphQL API 获取代码异常:', e);
       return null;
@@ -245,7 +264,7 @@
 
   // ==================== AI 调用 ====================
 
-  function buildPrompt(code, language, problemInfo) {
+  function buildPrompt(code, language, problemInfo, runResult) {
     const problemContext = problemInfo
       ? `题目名称：${problemInfo.title}
 难度：${problemInfo.difficulty}
@@ -255,12 +274,27 @@
 ${problemInfo.content || '（无详细描述）'}`
       : '（请根据代码内容自行判断题目类型）';
 
+    // 构建运行结果描述
+    let runContext = '';
+    if (runResult) {
+      const parts = [];
+      if (runResult.runtime) {
+        parts.push(`执行用时：${runResult.runtime}${runResult.runtimePercentile != null ? `（击败 ${runResult.runtimePercentile}% 的用户）` : ''}`);
+      }
+      if (runResult.memory) {
+        parts.push(`内存消耗：${runResult.memory}${runResult.memoryPercentile != null ? `（击败 ${runResult.memoryPercentile}% 的用户）` : ''}`);
+      }
+      if (parts.length > 0) {
+        runContext = `\n本次提交运行结果：\n${parts.join('\n')}\n`;
+      }
+    }
+
     return `你是一位资深算法工程师，请对以下已通过 LeetCode 的代码进行深度分析。
 
 ${problemContext}
 
 编程语言：${language}
-
+${runContext}
 提交的代码：
 \`\`\`${language}
 ${code}
@@ -295,8 +329,8 @@ ${code}
   /**
    * 启动流式 AI 分析
    */
-  function startStreamAnalysis(code, language, problemInfo) {
-    const prompt = buildPrompt(code, language, problemInfo);
+  function startStreamAnalysis(code, language, problemInfo, runResult) {
+    const prompt = buildPrompt(code, language, problemInfo, runResult);
 
     // 重置流式内容
     analyzerState.streamContent = '';
@@ -848,7 +882,7 @@ ${code}
       console.log('[LeetCode AI] 开始并行获取代码和题目信息...');
 
       // 并行获取代码和题目信息，两者都拿齐后再发 AI 请求，保证分析准确性
-      const [code, problemInfo] = await Promise.all([
+      const [codeResult, problemInfo] = await Promise.all([
         fetchSubmittedCode(),
         slug
           ? safeSendMessage({ type: 'FETCH_PROBLEM_DESC', slug })
@@ -859,6 +893,10 @@ ${code}
               })
           : Promise.resolve(null)
       ]);
+
+      // 从返回对象中提取代码和运行结果
+      const code = codeResult?.code || null;
+      const runResult = codeResult?.runResult || null;
 
       if (!code || code.trim().length < 10) {
         throw new Error('无法获取提交代码，请确保在提交详情页面使用此功能');
@@ -876,7 +914,7 @@ ${code}
       }
 
       // 启动流式分析
-      startStreamAnalysis(code, language, problemInfo);
+      startStreamAnalysis(code, language, problemInfo, runResult);
 
     } catch (error) {
       console.error('[LeetCode AI] 分析失败:', error);
