@@ -292,8 +292,6 @@ ${problemInfo.content || '（无详细描述）'}`
     return `你是一位资深算法工程师，请对以下已通过 LeetCode 的代码进行深度分析。
 
 ${problemContext}
-
-编程语言：${language}
 ${runContext}
 提交的代码：
 \`\`\`${language}
