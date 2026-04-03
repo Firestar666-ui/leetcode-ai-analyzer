@@ -3,8 +3,6 @@
 // 监听 SPA 路由变化，自动注入 content script
 
 const DEFAULT_GLM_API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-const DEFAULT_API_KEY = 'ecfed30d8eae4859a8d7820ba906846c.aBdZlRIQkZzsCW6M';
-
 // ==================== 获取存储的配置 ====================
 async function getConfig() {
   try {
