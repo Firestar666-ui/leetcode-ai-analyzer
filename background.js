@@ -144,7 +144,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'GLM_API_STREAM') {
-    handleGLMStream(message.payload, sender.tab.id);
+    // 根据配置决定是流式还是非流式
+    getConfig().then(config => {
+      if (config.streamOutput === false) {
+        // 非流式模式：调用普通请求，完成后发送 DONE 消息
+        handleGLMRequest(message.payload)
+          .then(content => {
+            chrome.tabs.sendMessage(sender.tab.id, {
+              type: 'GLM_STREAM_DONE',
+              fullContent: content
+            }).catch(() => {});
+          })
+          .catch(err => {
+            chrome.tabs.sendMessage(sender.tab.id, {
+              type: 'GLM_STREAM_ERROR',
+              error: err.message
+            }).catch(() => {});
+          });
+      } else {
+        handleGLMStream(message.payload, sender.tab.id);
+      }
+    });
     return true;
   }
 
@@ -166,6 +186,44 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else {
       sendResponse({ success: false, error: '无法获取 tab ID' });
     }
+    return true;
+  }
+
+  // 获取配置
+  if (message.type === 'GET_CONFIG') {
+    getConfig()
+      .then(data => sendResponse({ success: true, data }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  // 分析完成通知
+  if (message.type === 'SHOW_NOTIFICATION') {
+    showAnalysisNotification(message.title, message.body);
+    return false;
+  }
+
+  // 保存分析历史
+  if (message.type === 'SAVE_HISTORY') {
+    saveAnalysisHistory(message.record)
+      .then(() => sendResponse({ success: true }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  // 读取历史记录
+  if (message.type === 'GET_HISTORY') {
+    getAnalysisHistory()
+      .then(list => sendResponse({ success: true, data: list }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  // 清空历史记录
+  if (message.type === 'CLEAR_HISTORY') {
+    chrome.storage.local.remove('lcAiHistory')
+      .then(() => sendResponse({ success: true }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
   }
 });
@@ -325,6 +383,54 @@ async function handleGLMStream(payload, tabId) {
         error: error.message
       });
     } catch (e) {}
+  }
+}
+
+/**
+ * 发送系统通知（分析完成提示）
+ */
+function showAnalysisNotification(title, body) {
+  try {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: title || '✨ AI 分析完成',
+      message: body || '代码分析已完成，点击查看结果',
+      priority: 1
+    });
+  } catch (e) {
+    console.log('[LeetCode AI] 发送通知失败:', e.message);
+  }
+}
+
+/**
+ * 保存分析历史到 local storage
+ * 最多保留 50 条，超出时删除最旧的
+ */
+async function saveAnalysisHistory(record) {
+  try {
+    const result = await chrome.storage.local.get('lcAiHistory');
+    const history = result.lcAiHistory || [];
+    // 插入到最前面
+    history.unshift(record);
+    // 最多保留 50 条
+    if (history.length > 50) history.splice(50);
+    await chrome.storage.local.set({ lcAiHistory: history });
+  } catch (e) {
+    console.error('[LeetCode AI] 保存历史失败:', e);
+    throw e;
+  }
+}
+
+/**
+ * 读取历史记录
+ */
+async function getAnalysisHistory() {
+  try {
+    const result = await chrome.storage.local.get('lcAiHistory');
+    return result.lcAiHistory || [];
+  } catch (e) {
+    return [];
   }
 }
 

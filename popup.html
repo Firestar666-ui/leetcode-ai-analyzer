@@ -378,6 +378,139 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+
+    /* 历史记录 */
+    .history-item {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .history-item:hover {
+      background: rgba(124, 58, 237, 0.12);
+      border-color: rgba(124, 58, 237, 0.3);
+    }
+
+    .history-item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .history-item-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #c4b5fd;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .history-item-time {
+      font-size: 10px;
+      color: #6b7280;
+    }
+
+    .history-item-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .history-tag {
+      display: inline-block;
+      background: rgba(124, 58, 237, 0.2);
+      color: #a78bfa;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 10px;
+    }
+
+    .history-score {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    /* 历史详情弹窗 */
+    .history-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+
+    .history-modal.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .history-modal-box {
+      background: #1a1a2e;
+      border: 1px solid rgba(124, 58, 237, 0.4);
+      border-radius: 14px;
+      width: 320px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .history-modal-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .history-modal-close {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0 4px;
+    }
+
+    .history-modal-row {
+      margin-bottom: 10px;
+    }
+
+    .history-modal-label {
+      font-size: 11px;
+      color: #a78bfa;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .history-modal-value {
+      font-size: 12px;
+      color: #e5e7eb;
+      line-height: 1.5;
+    }
+
+    .history-modal-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    #btn-clear-history:hover {
+      background: rgba(239, 68, 68, 0.15) !important;
+    }
   </style>
 </head>
 <body>
@@ -494,6 +627,19 @@
     <button class="btn btn-secondary" id="btn-test" style="margin-top: 10px;">
       <span>🧪</span> 测试连接
     </button>
+
+    <!-- 历史记录 -->
+    <div class="settings-section" id="history-section" style="margin-top: 20px;">
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>📜 分析历史</span>
+        <button id="btn-clear-history" style="background:none;border:none;color:#ef4444;font-size:11px;cursor:pointer;padding:2px 6px;border-radius:4px;transition:background 0.2s;">清空</button>
+      </div>
+      <div id="history-list">
+        <div class="history-empty" id="history-empty" style="text-align:center;padding:20px 0;color:#6b7280;font-size:12px;">
+          暂无历史记录
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- 底部 -->
@@ -503,6 +649,13 @@
       <a href="https://github.com/Firestar666-ui/leetcode-ai-analyzer#readme" class="footer-link" id="link-help">使用帮助</a>
       <a href="https://github.com/Firestar666-ui/leetcode-aialyzer/issues" class="footer-link" id="link-feedback">反馈问题</a>
       <a href="https://github.com/Firestar666-ui/leetcode-ai-analyzer" class="footer-link" id="link-github">GitHub</a>
+    </div>
+  </div>
+
+  <!-- 历史详情弹窗 -->
+  <div class="history-modal" id="history-modal">
+    <div class="history-modal-box" id="history-modal-box">
+      <!-- 动态填充 -->
     </div>
   </div>
 

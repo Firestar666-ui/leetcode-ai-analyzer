@@ -38,7 +38,13 @@
     statusDesc: document.getElementById('status-desc'),
     linkHelp: document.getElementById('link-help'),
     linkFeedback: document.getElementById('link-feedback'),
-    linkGithub: document.getElementById('link-github')
+    linkGithub: document.getElementById('link-github'),
+    historySection: document.getElementById('history-section'),
+    historyList: document.getElementById('history-list'),
+    historyEmpty: document.getElementById('history-empty'),
+    btnClearHistory: document.getElementById('btn-clear-history'),
+    historyModal: document.getElementById('history-modal'),
+    historyModalBox: document.getElementById('history-modal-box')
   };
 
   // ==================== 初始化 ====================
@@ -47,6 +53,7 @@
     await loadConfig();
     bindEvents();
     updateUI();
+    await loadHistory();
   });
 
   // ==================== 配置管理 ====================
@@ -197,6 +204,21 @@
       e.preventDefault();
       chrome.tabs.create({ url: 'https://github.com/Firestar666-ui/leetcode-ai-analyzer' });
     });
+
+    // 清空历史记录
+    if (elements.btnClearHistory) {
+      elements.btnClearHistory.addEventListener('click', async () => {
+        try {
+          await chrome.runtime.sendMessage({ type: 'CLEAR_HISTORY' });
+          // 清除界面上的历史条目
+          Array.from(elements.historyList.querySelectorAll('.history-item')).forEach(el => el.remove());
+          if (elements.historyEmpty) elements.historyEmpty.style.display = 'block';
+          showToast('✓ 历史记录已清空');
+        } catch (e) {
+          showToast('✗ 清空失败', true);
+        }
+      });
+    }
   }
 
   // ==================== 功能函数 ====================
@@ -249,6 +271,147 @@
 
     btn.innerHTML = originalText;
     btn.disabled = false;
+  }
+
+  /**
+   * 加载并渲染历史记录
+   */
+  async function loadHistory() {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_HISTORY' });
+      const list = response?.data || [];
+
+      const historyList = elements.historyList;
+      const historyEmpty = elements.historyEmpty;
+
+      if (list.length === 0) {
+        if (historyEmpty) historyEmpty.style.display = 'block';
+        return;
+      }
+
+      if (historyEmpty) historyEmpty.style.display = 'none';
+
+      // 清除旧项（保留 empty 提示）
+      Array.from(historyList.querySelectorAll('.history-item')).forEach(el => el.remove());
+
+      list.forEach((record, idx) => {
+        const item = document.createElement('div');
+        item.className = 'history-item';
+
+        const timeStr = formatTime(record.timestamp);
+        const slug = record.problemSlug || '未知题目';
+        const lang = record.language || '';
+        const score = record.result?.style?.score ?? '—';
+        const methods = Array.isArray(record.result?.method?.current)
+          ? record.result.method.current.join(' / ')
+          : (record.result?.method?.current || '');
+
+        item.innerHTML = `
+          <div class="history-item-header">
+            <div class="history-item-title" title="${escapeHtmlAttr(slug)}">${escapeHtml(slug)}</div>
+            <div class="history-item-time">${timeStr}</div>
+          </div>
+          <div class="history-item-meta">
+            ${lang ? `<span class="history-tag">${escapeHtml(lang)}</span>` : ''}
+            ${methods ? `<span class="history-score">${escapeHtml(methods)}</span>` : ''}
+            ${score !== '—' ? `<span class="history-score" style="margin-left:auto">风格 ${score}</span>` : ''}
+          </div>
+        `;
+
+        item.addEventListener('click', () => showHistoryDetail(record));
+        historyList.insertBefore(item, historyEmpty);
+      });
+
+    } catch (e) {
+      console.log('[LeetCode AI Popup] 加载历史记录失败:', e);
+    }
+  }
+
+  /**
+   * 显示历史详情弹窗
+   */
+  function showHistoryDetail(record) {
+    const modal = elements.historyModal;
+    const box = elements.historyModalBox;
+    if (!modal || !box) return;
+
+    const result = record.result || {};
+    const method = result.method || {};
+    const complexity = result.complexity || {};
+    const style = result.style || {};
+
+    const tags = Array.isArray(method.current)
+      ? method.current.map(t => `<span class="history-tag">${escapeHtml(t)}</span>`).join('')
+      : (method.current ? `<span class="history-tag">${escapeHtml(method.current)}</span>` : '—');
+
+    box.innerHTML = `
+      <div class="history-modal-title">
+        <span>${escapeHtml(record.problemSlug || '未知题目')}</span>
+        <button class="history-modal-close" id="history-modal-close-btn">✕</button>
+      </div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:12px;">${formatTime(record.timestamp)} · ${escapeHtml(record.language || '')}</div>
+      ${result.celebration ? `<div style="background:rgba(124,58,237,0.12);border-radius:8px;padding:8px 10px;font-size:12px;color:#c4b5fd;margin-bottom:12px;">${escapeHtml(result.celebration)}</div>` : ''}
+      <div class="history-modal-row">
+        <div class="history-modal-label">🐾 方法</div>
+        <div class="history-modal-value history-modal-tags">${tags}</div>
+      </div>
+      ${method.core ? `<div class="history-modal-row"><div class="history-modal-label">核心考察</div><div class="history-modal-value">${escapeHtml(method.core)}</div></div>` : ''}
+      ${method.suggestion ? `<div class="history-modal-row"><div class="history-modal-label">建议方向</div><div class="history-modal-value">${escapeHtml(method.suggestion)}</div></div>` : ''}
+      <div class="history-modal-row">
+        <div class="history-modal-label">⚡ 复杂度</div>
+        <div class="history-modal-value">时间: ${escapeHtml(complexity.timeCurrentBig || '?')} &nbsp; 空间: ${escapeHtml(complexity.spaceCurrentBig || '?')}</div>
+      </div>
+      ${complexity.tip ? `<div class="history-modal-row"><div class="history-modal-label">优化建议</div><div class="history-modal-value">${escapeHtml(complexity.tip)}</div></div>` : ''}
+      <div class="history-modal-row">
+        <div class="history-modal-label">🎨 代码风格</div>
+        <div class="history-modal-value">评分: ${style.score ?? '—'}/100 &nbsp; ${escapeHtml(style.suggestion || '')}</div>
+      </div>
+    `;
+
+    modal.classList.add('show');
+
+    box.querySelector('#history-modal-close-btn').addEventListener('click', () => {
+      modal.classList.remove('show');
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.remove('show');
+    }, { once: true });
+  }
+
+  /**
+   * 格式化时间
+   */
+  function formatTime(isoStr) {
+    if (!isoStr) return '';
+    try {
+      const d = new Date(isoStr);
+      const now = new Date();
+      const diff = now - d;
+      if (diff < 60000) return '刚刚';
+      if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
+      if (diff < 7 * 86400000) return Math.floor(diff / 86400000) + ' 天前';
+      return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+    } catch (e) {
+      return '';
+    }
+  }
+
+  /**
+   * HTML 转义（属性用）
+   */
+  function escapeHtmlAttr(str) {
+    return String(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  /**
+   * HTML 转义
+   */
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = String(str);
+    return d.innerHTML;
   }
 
   /**

@@ -325,18 +325,22 @@ ${code}
   }
 
   /**
-   * 启动流式 AI 分析
+   * 启动 AI 分析（根据配置自动选择流式/非流式）
    */
-  function startStreamAnalysis(code, language, problemInfo, runResult) {
+  function startStreamAnalysis(code, language, problemInfo, runResult, config) {
     const prompt = buildPrompt(code, language, problemInfo, runResult);
+    const useStream = config?.streamOutput !== false;
 
     // 重置流式内容
     analyzerState.streamContent = '';
 
-    // 显示流式输出区域
-    showStreamOutput();
+    if (useStream) {
+      // 流式模式：显示流式输出区域
+      showStreamOutput();
+    }
+    // 非流式模式：保留现有 loading 动画，等待一次性结果
 
-    // 发送流式请求到 background
+    // 发送请求到 background（background 根据配置决定是否流式）
     if (!isContextValid()) {
       showError('扩展已更新，请刷新页面后重试');
       analyzerState.isAnalyzing = false;
@@ -526,6 +530,48 @@ ${code}
         }
         renderTabContent(result, 'method');
       }, 1500);
+
+      // 读取配置，按开关触发通知与历史记录
+      safeSendMessage({ type: 'GET_CONFIG' }).then(resp => {
+        const config = resp?.data || {};
+        const problemTitle = analyzerState.apiProblemSlug || '未知题目';
+
+        // 分析完成通知
+        if (config.showNotification !== false) {
+          safeSendMessage({
+            type: 'SHOW_NOTIFICATION',
+            title: '✨ AI 分析完成',
+            body: `「${problemTitle}」代码分析已完成，点击面板查看结果`
+          }).catch(() => {});
+        }
+
+        // 保存历史记录
+        if (config.saveHistory !== false) {
+          const record = {
+            id: Date.now(),
+            timestamp: new Date().toISOString(),
+            problemSlug: problemTitle,
+            language: analyzerState.apiLanguage || '未知',
+            result: result
+          };
+          safeSendMessage({ type: 'SAVE_HISTORY', record }).catch(() => {});
+        }
+      }).catch(() => {
+        // 读取配置失败时，默认执行通知和历史
+        safeSendMessage({
+          type: 'SHOW_NOTIFICATION',
+          title: '✨ AI 分析完成',
+          body: '代码分析已完成，点击面板查看结果'
+        }).catch(() => {});
+        const record = {
+          id: Date.now(),
+          timestamp: new Date().toISOString(),
+          problemSlug: analyzerState.apiProblemSlug || '未知题目',
+          language: analyzerState.apiLanguage || '未知',
+          result: result
+        };
+        safeSendMessage({ type: 'SAVE_HISTORY', record }).catch(() => {});
+      });
 
     } catch (error) {
       showError('解析分析结果失败: ' + error.message);
@@ -871,13 +917,27 @@ ${code}
     }
 
     try {
-      // 立即显示流式输出区域，让用户知道正在处理
-      showStreamOutput();
+      // 先读取配置，决定流式/非流式模式
+      let config = {};
+      try {
+        const configResp = await safeSendMessage({ type: 'GET_CONFIG' });
+        if (configResp?.success) config = configResp.data || {};
+      } catch (e) {
+        // 读取配置失败，使用默认（流式）
+      }
+
+      const useStream = config.streamOutput !== false;
+
+      if (useStream) {
+        // 流式模式：立即显示流式输出区域
+        showStreamOutput();
+      }
+      // 非流式模式：保留面板中的 loading 动画
 
       const language = getLanguage();
       const slug = getProblemSlugFromAPI();
 
-      console.log('[LeetCode AI] 开始并行获取代码和题目信息...');
+      console.log('[LeetCode AI] 开始并行获取代码和题目信息... 模式:', useStream ? '流式' : '非流式');
 
       // 并行获取代码和题目信息，两者都拿齐后再发 AI 请求，保证分析准确性
       const [codeResult, problemInfo] = await Promise.all([
@@ -911,8 +971,8 @@ ${code}
         console.log('[LeetCode AI] 题目信息未获取，将由 AI 自行推断题目类型');
       }
 
-      // 启动流式分析
-      startStreamAnalysis(code, language, problemInfo, runResult);
+      // 启动分析（传入配置）
+      startStreamAnalysis(code, language, problemInfo, runResult, config);
 
     } catch (error) {
       console.error('[LeetCode AI] 分析失败:', error);

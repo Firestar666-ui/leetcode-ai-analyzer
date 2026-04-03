@@ -34,7 +34,8 @@
     "activeTab",
     "storage",
     "scripting",
-    "webNavigation"
+    "webNavigation",
+    "notifications"
   ],
   "host_permissions": [
     "https://leetcode.cn/*",
